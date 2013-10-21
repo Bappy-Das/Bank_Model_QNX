@@ -13,7 +13,7 @@
 
 #define MY_PULSE_CODE   _PULSE_CODE_MINAVAIL
 
-static int global_time = 120;
+static int global_time = 100;
 
 typedef union {
         struct _pulse   pulse;
@@ -94,24 +94,32 @@ void *time_update( void *ptr )
 void *teller_1( void *ptr )
 {
      while(global_time > 0){
-    	 printf("teller_2 : global_time = %d \n", global_time);
-    	 usleep(2000000);
+    	 int customer_time;    //individual customer time.
+    	 customer_time = rand() % 12 + 1;
+    	 printf("teller_1 : global_time = %d and customer_time = %d min\n", global_time, ((customer_time / 2) + (customer_time %2)) );
+    	 usleep( 50000 * customer_time );
      }
 }
 
 void *teller_2( void *ptr )
 {
      while(global_time > 0){
-    	 printf("teller_2 : global_time = %d \n", global_time);
-    	 usleep(1000000);
+    	 int customer_time;    //individual customer time.
+    	 customer_time = rand() % 12 + 1;
+    	 printf("teller_2 : global_time = %d and customer_time = %d min\n", global_time, ((customer_time / 2) + (customer_time %2)) );
+    	 usleep(50000 * customer_time);
      }
 }
 
 void *teller_3( void *ptr )
 {
      while(global_time > 0){
-    	 printf("teller_3 : global_time = %d \n", global_time);
-    	 usleep(1500000);
+    	 int customer_time;     //individual customer time.
+    	 customer_time = rand() % 12 + 1;
+    	 printf("teller_3 : global_time = %d  and customer_time = %d min\n", global_time, ((customer_time / 2) + (customer_time %2)) );
+    	 usleep(50000 * customer_time);
      }
 }
+
+
 
