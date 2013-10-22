@@ -8,7 +8,8 @@
 
 #define MY_PULSE_CODE   _PULSE_CODE_MINAVAIL
 
-static int global_time = 60;
+static int global_time = 100;
+pthread_mutex_t lock;
 
 typedef union {
         struct _pulse   pulse;
@@ -28,6 +29,9 @@ struct Customer
 
 void delQueue()
 {
+	 printf("DeQueue!\n");
+	  pthread_mutex_lock(&lock);
+
       struct Customer *temp, *var=rear;
       if(var==rear)
       {
@@ -36,13 +40,17 @@ void delQueue()
       }
       else
       printf("\nQueue Empty");
+      pthread_mutex_unlock(&lock);
 }
 
 void push(int value)
 {
-     struct Customer *temp;
+	 printf("Push\n");
+	 pthread_mutex_lock(&lock);
+	 struct Customer *temp;
      temp=(struct Customer *)malloc(sizeof(struct Customer));
      temp->time_in=value;
+
      if (front == NULL)
      {
            front=temp;
@@ -55,54 +63,71 @@ void push(int value)
            front=temp;
            front->next=NULL;
      }
+     pthread_mutex_unlock(&lock);
 }
 
 void display()
 {
+	printf("Display\n");
+	 pthread_mutex_lock(&lock);
      struct Customer *var=rear;
      if(var!=NULL)
      {
            printf("\nElements are as:  ");
            while(var!=NULL)
            {
+                pthread_mutex_lock(&lock);
                 printf("\t%d",var->time_in);
+                pthread_mutex_unlock(&lock);
                 var=var->next;
            }
      printf("\n");
      }
      else
      printf("\nQueue is Empty");
+     pthread_mutex_unlock(&lock);
 }
 
 
 int main(int *argc, char ***argv)
 {
-    pthread_t thread1, thread2, thread3;
+    pthread_t thread0, thread1, thread2, thread3;
     const char *message1 = "Teller 1";
     const char *message2 = "Teller 2";
     const char *message3 = "Teller 3";
     int next_customer_in_time;
     int  timerThread, tellerThread1, tellerThread2, tellerThread3;
 
+    // This is mutex for saving queue from Parallel access.
+    if (pthread_mutex_init(&lock, NULL) != 0)
+        {
+            printf("\n mutex init failed\n");
+            return 1;
+        }
+
+
     /* independent threads for tellers */
 
-    timerThread = pthread_create( &thread1, NULL, time_update, (void*) message1);
-   /* tellerThread1 = pthread_create( &thread1, NULL, teller_1, (void*) message1);
+    timerThread = pthread_create( &thread0, NULL, time_update, (void*) message1);
+    tellerThread1 = pthread_create( &thread1, NULL, teller_1, (void*) message1);
     tellerThread2 = pthread_create( &thread2, NULL, teller_2, (void*) message2);
-    tellerThread3 = pthread_create( &thread3, NULL, teller_3, (void*) message3);
+    /*tellerThread3 = pthread_create( &thread3, NULL, teller_3, (void*) message3);
 */
-     pthread_join( time_update, NULL);
-    /* pthread_join( thread1, NULL);
-     pthread_join( thread2, NULL);
-     pthread_join( thread3, NULL);*/
      while (global_time > 0){
-         next_customer_in_time = rand() % 8 + 1;
+    	 push(global_time);
+         //next_customer_in_time = rand() % 8 + 1;
          //printf("next_customer_in_time = %d, global_time = %d\n", next_customer_in_time, global_time);
-         usleep( 100000 * next_customer_in_time );
-         push(global_time);
+         //usleep( 100000 * next_customer_in_time );
+    	 usleep(100000);
+    	 display();
      }
-     tellerThread1 = pthread_create( &thread1, NULL, teller_1, (void*) message1);
+
+     //pthread_join( thread0, NULL);
      pthread_join( thread1, NULL);
+     pthread_join( thread2, NULL);
+     //pthread_join( thread3, NULL);*/
+     pthread_mutex_destroy(&lock);   // This is destroying the mutex.
+
      printf("Teller 1 returns: %d\n",timerThread);
      printf("Teller 1 returns: %d\n",tellerThread1);
      printf("Teller 2 returns: %d\n",tellerThread2);
@@ -143,6 +168,8 @@ void *time_update( void *ptr )
 	          if (msg.pulse.code == MY_PULSE_CODE) {
 	          	if (global_time > 0)
 	        	  global_time--;
+	          	else
+	          		break;
 	            //printf("we got a pulse from our timer and time = %d\n", global_time);
 	          } /* else other pulses ... */
 	     } /* else other messages ... */
@@ -151,22 +178,28 @@ void *time_update( void *ptr )
 
 void *teller_1( void *ptr )
 {
+	usleep(500000);
      while(global_time > 0){
     	 int customer_time;    //individual customer time.
-    	 customer_time = rand() % 12 + 1;
+    	 //customer_time = rand() % 12 + 1;
+    	 customer_time = rand() % 25 + 1;
     	 //printf("teller_1 : global_time = %d and customer_time = %d min\n", global_time, ((customer_time / 2) + (customer_time %2)) );
     	 usleep( 50000 * customer_time );
     	 delQueue();
+    	 printf("This is from Thread_1.\n");
      }
 }
 
 void *teller_2( void *ptr )
 {
+	 usleep(500000);
      while(global_time > 0){
     	 int customer_time;    //individual customer time.
-    	 customer_time = rand() % 12 + 1;
-    	 printf("teller_2 : global_time = %d and customer_time = %d min\n", global_time, ((customer_time / 2) + (customer_time %2)) );
+    	 //customer_time = rand() % 12 + 1;
+    	 customer_time = rand() % 25 + 1;
+    	 //printf("teller_2 : global_time = %d and customer_time = %d min\n", global_time, ((customer_time / 2) + (customer_time %2)) );
     	 usleep( 50000 * customer_time);
+    	 printf("This is from Thread_2.\n");
      }
 }
 
