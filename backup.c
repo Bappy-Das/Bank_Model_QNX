@@ -8,7 +8,7 @@
 
 #define MY_PULSE_CODE   _PULSE_CODE_MINAVAIL
 
-static int global_time = 200;
+static int global_time = 150;
 static int total_customer = 0;
 static int max_customer_queue_wait = 0;
 static int current_queue_legth = 0;
@@ -17,6 +17,7 @@ static int max_transaction_time_1 = 0;
 static int max_transaction_time_2 = 0;
 static int max_transaction_time_3 = 0;
 static int max_transaction_time = 0;
+static int total_queue_time = 0;
 
 pthread_mutex_t lock;
 pthread_mutex_t max_value_lock;
@@ -37,7 +38,7 @@ struct Customer
         struct Customer* next;
  }*rear, *front;
 
-void delQueue()
+int customer_move_out()
 {
 	  //printf("DeQueue!\n");
 	  pthread_mutex_lock(&lock);
@@ -47,17 +48,24 @@ void delQueue()
       if(var==rear)
       {
              rear = rear->next;
-             if (var->time_in-global_time > max_customer_queue_wait)
-            	 max_customer_queue_wait = var->time_in-global_time;
-             //printf("delQueue:Customer intime= %d outtime = %d wait time in queue = %d", var->time_in, global_time, var->time_in-global_time);
+             int current_customer_queuetime = var->time_in-global_time;
+             total_queue_time += (current_customer_queuetime);
+             if (current_customer_queuetime > max_customer_queue_wait)
+            	 max_customer_queue_wait = current_customer_queuetime;
+             //printf("Customer_move_out:Customer intime= %d outtime = %d wait time in queue = %d\n", var->time_in, global_time, var->time_in-global_time);
              free(var);
+             pthread_mutex_unlock(&lock);
+             return 1;
       }
-      else
-      printf("\nQueue Empty");
-      pthread_mutex_unlock(&lock);
+      else{
+    	  printf("\nQueue Empty");
+    	  pthread_mutex_unlock(&lock);
+    	  return 0;
+      }
+
 }
 
-void push(int value)
+void customer_move_in(int value)
 {
 	 //printf("Push\n");
 	 pthread_mutex_lock(&lock);
@@ -106,7 +114,7 @@ void display()
 }
 
 
-int main(int *argc, char ***argv)
+int main(int argc, char ***argv)
 {
     printf("Bank is open.. Customer can come in now..:)\n");
 	pthread_t thread0, thread1, thread2, thread3;
@@ -132,15 +140,15 @@ int main(int *argc, char ***argv)
 
     timerThread = pthread_create( &thread0, NULL, time_update, (void*) message1);
     tellerThread1 = pthread_create( &thread1, NULL, teller_1, (void*) message1);
-    //tellerThread2 = pthread_create( &thread2, NULL, teller_2, (void*) message2);
-    tellerThread3 = pthread_create( &thread3, NULL, teller_3, (void*) message3);
+    tellerThread2 = pthread_create( &thread2, NULL, teller_2, (void*) message2);
+    //tellerThread3 = pthread_create( &thread3, NULL, teller_3, (void*) message3);
 
      while (global_time > 0){
     	 srand(1);
-    	 push(global_time);
+    	 customer_move_in(global_time);
     	 total_customer ++;
          //next_customer_in_time = rand() % 8 + 1;
-    	 next_customer_in_time = rand() % 4 + 1;
+    	 next_customer_in_time = rand() % 1 + 1;
          //printf("next_customer_in_time = %d, global_time = %d\n", next_customer_in_time, global_time);
          usleep( 100000 * next_customer_in_time );
     	 //display();
@@ -148,8 +156,8 @@ int main(int *argc, char ***argv)
 
      //pthread_join( thread0, NULL);
      pthread_join( thread1, NULL);
-     //pthread_join( thread2, NULL);
-     pthread_join( thread3, NULL);
+     pthread_join( thread2, NULL);
+     //pthread_join( thread3, NULL);
 
      pthread_mutex_destroy(&max_value_lock);   // This is destroying the mutex.
      pthread_mutex_destroy(&lock);
@@ -160,6 +168,7 @@ int main(int *argc, char ***argv)
      printf("Maximum depth of the customer queue = %d customers\n", max_length_queue);
      printf("Max transaction time for teller-1 : %d\nMax transaction time for teller-2 : %d\nMax transaction time for teller-3 : %d\n", max_transaction_time_1, max_transaction_time_2, max_transaction_time_3);
      printf("Max transaction time for all the tellers : %d\n", max_transaction_time);
+     printf("Avg time a customer spend in queue = %d min", total_queue_time/total_customer);
 
      exit(0);
 }
@@ -204,67 +213,86 @@ void *time_update( void *ptr )
 
 void *teller_1( void *ptr )
 {
-	 usleep(700000);
+	 usleep(400000);
 	 printf("This is from Thread_1.\n");
      while(/*global_time > 0 || */front!=0 && rear != 0){
-    	 srand(1);
-    	 int customer_time;    //individual customer time.
-    	 //customer_time = rand() % 12 + 1;
-    	 customer_time = rand() % 20 + 1;
-    	 if(customer_time > max_transaction_time_1)
-    		 max_transaction_time_1 = customer_time;
-    	 if(customer_time > max_transaction_time)
-    		 pthread_mutex_lock(&max_value_lock);
-    	     max_transaction_time = customer_time;
-    	     pthread_mutex_unlock(&max_value_lock);
-    	 //printf("teller_1 : global_time = %d and customer_time = %d min\n", global_time, ((customer_time / 2) + (customer_time %2)) );
-    	 usleep( 50000 * customer_time );
-    	 delQueue();
-    	 display();
+    	 if (customer_move_out() == 0) {
+    		 printf("Teller_1 sleeping\n");
+    		 usleep(50000);
+    	 }
+         else {
+        	 //display();
+        	 srand(1);
+        	 int customer_time;    //individual customer time.
+        	 //customer_time = rand() % 12 + 1;
+				 customer_time = rand() % 15 + 1;
+			 if(customer_time > max_transaction_time_1)
+				 max_transaction_time_1 = customer_time;
+			 if(customer_time > max_transaction_time){
+				 pthread_mutex_lock(&max_value_lock);
+				 max_transaction_time = customer_time;
+				 pthread_mutex_unlock(&max_value_lock);
+			 }
+			 //printf("teller_1 : global_time = %d and customer_time = %d min\n", global_time, ((customer_time / 2) + (customer_time %2)) );
+			 usleep( 50000 * customer_time );
+         }
     	 //printf("This is thread1\n");
      }
+     printf("Teller_1 goes offline.\n");
 }
 
 void *teller_2( void *ptr )
 {
 	 usleep(700000);
-	 printf("This is from Thread_2.\n");
      while(/*global_time > 0 || */front!=0 && rear != 0){
-    	 srand(1);
-    	 int customer_time;    //individual customer time.
-    	 //customer_time = rand() % 12 + 1;
-    	 customer_time = rand() % 15 + 1;
-    	 if(customer_time > max_transaction_time_2)
-    		 max_transaction_time_2 = customer_time;
-    	 if(customer_time > max_transaction_time)
-    		 pthread_mutex_lock(&max_value_lock);
-    	     max_transaction_time = customer_time;
-    	     pthread_mutex_unlock(&max_value_lock);
-     	 delQueue();
-    	 //printf("teller_2 : global_time = %d and customer_time = %d min\n", global_time, ((customer_time / 2) + (customer_time %2)) );
-    	 usleep( 50000 * customer_time);
+    	 if (customer_move_out() == 0) {
+    	     		 printf("Teller_1 sleeping\n");
+    	     		 usleep(50000);
+    	 }
+    	 else {
+    		 srand(1);
+    		 int customer_time;    //individual customer time.
+    		 //customer_time = rand() % 12 + 1;
+    		 customer_time = rand() % 20 + 1;
+    		 if(customer_time > max_transaction_time_2)
+    			 max_transaction_time_2 = customer_time;
+    		 if(customer_time > max_transaction_time){
+    			 pthread_mutex_lock(&max_value_lock);
+    			 max_transaction_time = customer_time;
+    			 pthread_mutex_unlock(&max_value_lock);
+    		 }
+    		 usleep( 50000 * customer_time);
+    		 //printf("teller_2 : global_time = %d and customer_time = %d min\n", global_time, ((customer_time / 2) + (customer_time %2)) );
+    	 }
      }
      printf("Teller_2 going offline.\n");
 }
 
 void *teller_3( void *ptr )
 {
-	 usleep(600000);
-     while(global_time > 0 || front!=0 && rear != 0){
-    	 srand(1);
-    	 int customer_time;     //individual customer time.
-    	 customer_time = rand() % 20 + 1;
-    	 if(customer_time > max_transaction_time_3)
-    		 max_transaction_time_3 = customer_time;
-    	 if(customer_time > max_transaction_time)
-    		 pthread_mutex_lock(&max_value_lock);
-    	     max_transaction_time = customer_time;
-    	     pthread_mutex_unlock(&max_value_lock);
-    	 delQueue();
-    	 //printf("teller_3 : global_time = %d  and customer_time = %d min\n", global_time, ((customer_time / 2) + (customer_time %2)) );
-    	 usleep( 50000 * customer_time );
- //   	 printf("This is from Thread_3.\n");
+     usleep(600000);
+     while(/*global_time > 0 || */front!=0 && rear != 0){
+    	 if (customer_move_out() == 0) {
+    	     		 printf("Teller_1 sleeping\n");
+    	     		 usleep(50000);
+    	 }
+    	 else{
+    		 srand(1);
+    		 int customer_time;     //individual customer time.
+    		 customer_time = rand() % 20 + 1;
+    		 if(customer_time > max_transaction_time_3)
+    			 max_transaction_time_3 = customer_time;
+    		 if(customer_time > max_transaction_time){
+    			 pthread_mutex_lock(&max_value_lock);
+    			 max_transaction_time = customer_time;
+    			 pthread_mutex_unlock(&max_value_lock);
+    		 }
+    		 //printf("teller_3 : global_time = %d  and customer_time = %d min\n", global_time, ((customer_time / 2) + (customer_time %2)) );
+    		 usleep( 50000 * customer_time );
+    		 //printf("This is from Thread_3.\n");
+    	 }
      }
+
      printf("Teller_3 going offline.\n");
 }
 
