@@ -18,6 +18,7 @@ static int max_transaction_time_2 = 0;
 static int max_transaction_time_3 = 0;
 static int max_transaction_time = 0;
 static int total_queue_time = 0;
+static int total_service_time = 0;
 
 pthread_mutex_t lock;
 pthread_mutex_t max_value_lock;
@@ -91,7 +92,7 @@ void customer_move_in(int value)
      pthread_mutex_unlock(&lock);
 }
 
-void display()
+void display_queue_status()
 {
 	//printf("Display\n");
 	 pthread_mutex_lock(&lock);
@@ -168,7 +169,8 @@ int main(int argc, char ***argv)
      printf("Maximum depth of the customer queue = %d customers\n", max_length_queue);
      printf("Max transaction time for teller-1 : %d\nMax transaction time for teller-2 : %d\nMax transaction time for teller-3 : %d\n", max_transaction_time_1, max_transaction_time_2, max_transaction_time_3);
      printf("Max transaction time for all the tellers : %d\n", max_transaction_time);
-     printf("Avg time a customer spend in queue = %d min", total_queue_time/total_customer);
+     printf("Avg time a customer spend in queue = %d min\n", total_queue_time/total_customer);
+     printf("Avg time each customer spends with the teller = %d\n", total_service_time/total_customer);
 
      exit(0);
 }
@@ -226,11 +228,14 @@ void *teller_1( void *ptr )
         	 int customer_time;    //individual customer time.
         	 //customer_time = rand() % 12 + 1;
 				 customer_time = rand() % 15 + 1;
+	    		 pthread_mutex_lock(&max_value_lock);
+	    		 total_service_time += customer_time;   //update the total service time for the Bank database.
+	    		 pthread_mutex_unlock(&max_value_lock);
 			 if(customer_time > max_transaction_time_1)
 				 max_transaction_time_1 = customer_time;
 			 if(customer_time > max_transaction_time){
 				 pthread_mutex_lock(&max_value_lock);
-				 max_transaction_time = customer_time;
+				 max_transaction_time = customer_time;   //update the max transaction time for the Bank database.
 				 pthread_mutex_unlock(&max_value_lock);
 			 }
 			 //printf("teller_1 : global_time = %d and customer_time = %d min\n", global_time, ((customer_time / 2) + (customer_time %2)) );
@@ -254,11 +259,16 @@ void *teller_2( void *ptr )
     		 int customer_time;    //individual customer time.
     		 //customer_time = rand() % 12 + 1;
     		 customer_time = rand() % 20 + 1;
+
+    		 pthread_mutex_lock(&max_value_lock);
+    		 total_service_time += customer_time;  //update the total service time for the Bank database.
+    		 pthread_mutex_unlock(&max_value_lock);
+
     		 if(customer_time > max_transaction_time_2)
     			 max_transaction_time_2 = customer_time;
     		 if(customer_time > max_transaction_time){
     			 pthread_mutex_lock(&max_value_lock);
-    			 max_transaction_time = customer_time;
+    			 max_transaction_time = customer_time;   //update the max transaction time for the Bank database.
     			 pthread_mutex_unlock(&max_value_lock);
     		 }
     		 usleep( 50000 * customer_time);
@@ -280,11 +290,14 @@ void *teller_3( void *ptr )
     		 srand(1);
     		 int customer_time;     //individual customer time.
     		 customer_time = rand() % 20 + 1;
+    		 pthread_mutex_lock(&max_value_lock);
+    		 total_service_time += customer_time;  //update the total service time for the Bank database.
+    		 pthread_mutex_unlock(&max_value_lock);
     		 if(customer_time > max_transaction_time_3)
     			 max_transaction_time_3 = customer_time;
     		 if(customer_time > max_transaction_time){
     			 pthread_mutex_lock(&max_value_lock);
-    			 max_transaction_time = customer_time;
+    			 max_transaction_time = customer_time;    //update the max transaction time for the Bank database.
     			 pthread_mutex_unlock(&max_value_lock);
     		 }
     		 //printf("teller_3 : global_time = %d  and customer_time = %d min\n", global_time, ((customer_time / 2) + (customer_time %2)) );
