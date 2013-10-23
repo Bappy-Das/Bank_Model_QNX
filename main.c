@@ -29,6 +29,8 @@ static int max_transaction_time = 0;
 static int total_queue_time = 0;
 static int total_service_time = 0;
 
+int bool = 0;
+
 int customer_queue_flag = 0;
 
 pthread_mutex_t lock;
@@ -241,6 +243,7 @@ void *time_update( void *ptr )
 	     if (rcvid == 0) { /* we got a pulse */
 	          if (msg.pulse.code == MY_PULSE_CODE) {
 	        	  global_time--;
+	        	  bool = 1-bool;     //This is switching bool for generating random wait for teller.
 	            //printf("we got a pulse from our timer and time = %d\n", global_time);
 	          } /* else other pulses ... */
 	     } /* else other messages ... */
@@ -265,8 +268,8 @@ void *teller_1( void *ptr )
     		 usleep(50000);
     	 }
          else {
-        	 //display_queue_status();
         	 srand(1);
+        	 //display_queue_status();
         	 int customer_time;    //individual customer time.
         	 display_queue_status();
         	 //customer_time = rand() % 12 + 1;
@@ -284,11 +287,12 @@ void *teller_1( void *ptr )
 			 //printf("teller_1 : global_time = %d and customer_time = %d min\n", global_time, ((customer_time / 2) + (customer_time %2)) );
 			 usleep( 50000 * customer_time );
          }
-    	 //printf("This is thread1\n");
+
     	 if( global_time <= random_break && global_time >0 )
     	 {
-    		int break_time = (rand()%3+1);
-    		printf("Teller_1:I am on break for %d.\n", break_time);
+    		srand(bool);
+    		int break_time = (rand()%5+1);
+    		printf("Teller_1: I am on break for %d min.\n", break_time);
     		usleep(50000 * break_time);
     		random_break = global_time - (rand()%30 + 30);
     	 }
@@ -336,8 +340,9 @@ void *teller_2( void *ptr )
     	 //printf("Teller_2: Lock_3\n");
      	 if(global_time <= random_break && global_time >0 )
      	 {
-     		int break_time = (rand()%3+1);
-     		printf("Teller_2:I am on break for %d.\n", break_time);
+     		srand(bool);
+     		int break_time = (rand()%4+1);
+     		printf("Teller_2: I am on break for %d min.\n", break_time);
      		usleep(50000 * break_time);
      		random_break = global_time - (rand()%30+ 30);
      	 }
@@ -382,10 +387,12 @@ void *teller_3( void *ptr )
     	 }
      	if(global_time <= random_break)
      	{
+     		srand(bool);
      		int break_time = (rand()%3+1);
-     		printf("Teller_3:I am on break for %d.\n", break_time);
+     		printf("Teller_3: I am on break for %d min.\n", break_time);
      		usleep(50000 * break_time);
      		random_break = global_time - (rand()%30 + 30);
+     		srand(0);
      	}
      }
      printf("Teller_3 going offline.\n");
